@@ -15,7 +15,7 @@ if "../" not in sys.path:
 from collections import defaultdict
 from lib import plotting
 import matplotlib as mp
-
+import copy
 
 class FrictionFinger :
     """
@@ -68,7 +68,7 @@ class FrictionFinger :
         #self.theta1_solution=None
 #       self.theta2_solution=None
         self.reward= None
-        self.d1_d=10.0
+        self.d1_d=7.0
         self.d2_d=10.0
         self.fs_d= 1
 #       self.t1_max=140
@@ -112,11 +112,11 @@ class FrictionFinger :
 """
 
     def reset(self):
-        self.state = [1.0, 10, 1.0]
+        self.state = [10.0, 10.0, 1.0]
         return self.state
 
     def step(self, action):
-
+        prev_state= copy.copy(self.state)
         rew= lambda st: 1 if st[0]==self.d1_d and st[1]==self.d2_d and st[2]==self.fs_d else 0
         #rew=lambda st: -np.linalg.norm([st[0]-self.d1_d,st[1]-self.d2_d])   /10
         #rew = lambda st: 10*np.exp((abs(st[0] - self.d1_d) + abs(st[1] - self.d2_d)))
@@ -182,7 +182,8 @@ class FrictionFinger :
         else:
             self.done= False
         self.state=[max(min(self.state[0],12),0),max(min(self.state[1],12),0),max(min(self.state[2],1),0)]
-        return  self.state ,self.reward, self.done
+        print((prev_state, self.state ,self.reward, self.done),)
+        return prev_state, self.state ,self.reward, self.done
 """
     def cacl_th1andth2left(self):
 
@@ -299,14 +300,19 @@ if __name__ == '__main__':
            # total_reward = 0.0
            for t in itertools.count():
 
+
                # Take a step
                action_probs = policy(state)
                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
                # print("state_before", env.state)
                # print("action",action)
-               next_state, reward, done = env.step(action)
+               prev_state,next_state, reward, done = env.step(action)
                # print("state_after", env.state)
-
+               # if done: #or t==1000:
+               #
+               #     print('found the solution',state)
+               #     #print (Q)
+               #     break
 
                
                # Update statistics
@@ -324,12 +330,14 @@ if __name__ == '__main__':
 
                Q[tuple(state)][action] += alpha * td_delta
 
-               #print('state', state, 'action', action, 'next state', next_state, 'reward', reward)
+
+               #print('Q',Q[(1,10,1)])
                alpha= alpha**t
 
                if done: #or t==1000:
                    #if done:
-                   print('found the solution')
+                   print('found the solution',state,'prev',prev_state)
+                   z=input()
                        #print (Q)
                    break
 
@@ -344,7 +352,7 @@ if __name__ == '__main__':
        env.reset()
        done1 =False
        print('start state1',start_state)
-       while ( done1 == False):
+       while ( not done1):
            print('start state2',start_state)
 
            best_action1 = np.argmax(Q[tuple(start_state)])
@@ -357,5 +365,6 @@ if __name__ == '__main__':
            print('state:',start_state)
 
    plotting.plot_episode_stats(stats)
+   pdb.set_trace()
    follow_greedy_policy(Q, env.state)
 
