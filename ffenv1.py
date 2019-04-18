@@ -17,6 +17,33 @@ from lib import plotting
 import matplotlib as mp
 import copy
 
+
+class ReplayMemory:
+    def __init__(self,n):
+        self.size=n
+        self.expBuffer=[]
+
+    # Circular memory
+    def push(self,exp):
+        if len(self.expBuffer)<self.size:
+            self.expBuffer=[exp]+self.expBuffer
+        else:
+            self.expBuffer.pop(0)
+            self.expBuffer=[exp]+self.expBuffer
+
+    # Check if buffer has sufficient experience
+    def isReady(self):
+        return len(self.expBuffer)>=32
+
+    def sampleBatch(self,sz=None):
+        if sz==None:
+            sz=32
+        idxs=[np.random.randint(0,len(self.expBuffer)) for _ in range(len(self.expBuffer))]
+        return [self.expBuffer[idx] for idx in idxs]
+
+
+
+
 class FrictionFinger :
     """
 
@@ -117,7 +144,7 @@ class FrictionFinger :
 
     def step(self, action):
         prev_state= copy.copy(self.state)
-        rew= lambda st: 1 if st[0]==self.d1_d and st[1]==self.d2_d and st[2]==self.fs_d else 0
+        rew= lambda st: 10 if st[0]==self.d1_d and st[1]==self.d2_d and st[2]==self.fs_d else 0
         #rew=lambda st: -np.linalg.norm([st[0]-self.d1_d,st[1]-self.d2_d])   /10
         #rew = lambda st: 10*np.exp((abs(st[0] - self.d1_d) + abs(st[1] - self.d2_d)))
 
@@ -182,8 +209,8 @@ class FrictionFinger :
         else:
             self.done= False
         self.state=[max(min(self.state[0],12),0),max(min(self.state[1],12),0),max(min(self.state[2],1),0)]
-        print((prev_state, self.state ,self.reward, self.done),)
-        return prev_state, self.state ,self.reward, self.done
+        #print((prev_state, self.state ,self.reward, self.done),)
+        return (prev_state,action, self.state ,self.reward, self.done)
 """
     def cacl_th1andth2left(self):
 
@@ -278,6 +305,7 @@ if __name__ == '__main__':
        # The final action-value function.
        # A nested dictionary that maps state -> (action -> action-value).
        Q = defaultdict(lambda: np.ones(env.action_space.n))
+       exprep=ReplayMemory(2048)
 
        # Keeps track of useful statistics
        stats = plotting.EpisodeStats(
@@ -306,7 +334,9 @@ if __name__ == '__main__':
                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
                # print("state_before", env.state)
                # print("action",action)
-               prev_state,next_state, reward, done = env.step(action)
+               tup = env.step(action)
+               exprep.push(tup)
+               #prev_state, next_state, reward, done
                # print("state_after", env.state)
                # if done: #or t==1000:
                #
@@ -316,32 +346,36 @@ if __name__ == '__main__':
 
                
                # Update statistics
-               stats.episode_rewards[i_episode] += reward
+               stats.episode_rewards[i_episode] += tup[3]
                stats.episode_lengths[i_episode] = t
-
-               # TD Update
-               best_next_action = np.argmax(Q[tuple(next_state)])
-
-               td_target = reward + discount_factor * Q[tuple(next_state)][best_next_action]
-
-
-               td_delta = td_target - Q[tuple(state)][action]
+               if exprep.isReady():
+                   B=exprep.sampleBatch(32)
+                   for i in B:
+                   # TD Update
+                       prev_state,action, next_state, reward, done= i[0],i[1],i[2],i[3],i[4]
+                       best_next_action = np.argmax(Q[tuple(next_state)])
 
 
-               Q[tuple(state)][action] += alpha * td_delta
+                       td_target = reward + discount_factor * Q[tuple(next_state)][best_next_action] if not done else reward
 
 
-               #print('Q',Q[(1,10,1)])
-               alpha= alpha**t
+                       td_delta = td_target - Q[tuple(prev_state)][action]
 
-               if done: #or t==1000:
+
+                       Q[tuple(prev_state)][action] += alpha * td_delta
+
+
+                   #print('Q',Q[(1,10,1)])
+                   #alpha= alpha**t
+
+               if tup[-1]: #or t==1000:
                    #if done:
-                   print('found the solution',state,'prev',prev_state)
-                   z=input()
+                   print('found the solution',tup[2],'prev',tup[0])
+                   # z=input()
                        #print (Q)
                    break
 
-               state = next_state
+               state = tup[2]
 
 
        return Q, stats
@@ -350,21 +384,23 @@ if __name__ == '__main__':
    env.reset()
    def follow_greedy_policy(Q,start_state):
        env.reset()
-       done1 =False
-       print('start state1',start_state)
-       while ( not done1):
+       done =False
+       #print('start state1',start_state)
+       step=0
+       while ( not done and step<=10):
            print('start state2',start_state)
 
            best_action1 = np.argmax(Q[tuple(start_state)])
-           print('start state3', start_state)
+           # print('start state3', start_state)
            print('best action', best_action1)
-           next_state1, reward1, done1 = env.step(best_action1)
-
-           print ('nextstate',next_state1)
-           start_state=next_state1
+           tup = env.step(best_action1)
+           prev_state, action, next_state, reward, done = tup[0], tup[1], tup[2], tup[3], tup[4]
+           print('Q',Q[tuple(prev_state)])
+           print ('nextstate',next_state)
+           start_state=next_state
            print('state:',start_state)
-
+           step+=1
    plotting.plot_episode_stats(stats)
-   pdb.set_trace()
+
    follow_greedy_policy(Q, env.state)
 
