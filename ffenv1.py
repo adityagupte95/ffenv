@@ -85,8 +85,8 @@ class FrictionFinger :
 #self.sqrwidth=2.5
 
 
-        self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Tuple((spaces.Box(low=np.array([0, 0]), high=np.array([12, 12]), dtype=np.int), spaces.Discrete(2)))
+        self.action_space = spaces.Discrete(3)
+        self.observation_space = spaces.Tuple((spaces.Box(low=np.array([0, 0]), high=np.array([2, 2]), dtype=np.int), spaces.Discrete(2)))
         self.state = None
 #       self.t1 = 40 * np.pi / 180 #       self.fngrwdth = 1.5
 #       self.palmwdth = 6.0
@@ -95,56 +95,20 @@ class FrictionFinger :
         #self.theta1_solution=None
 #       self.theta2_solution=None
         self.reward= None
-        self.d1_d=7.0
-        self.d2_d=10.0
+        self.d1_d=2
+        self.d2_d=2
         self.fs_d= 1
 #       self.t1_max=140
 #       self.t2_min=40
 
-    """
-    def translate_1(self, action):
-        # Center Coordinates
-        d2= self.state(2)
-        t2=self.theta2_solution
-        x_square = (d2 - self.sqrwidth / 2) * np.cos(t2) + (self.fngrwdth + self.sqrwidth / 2) * np.sin(t2)
-        y_square = (d2 - self.sqrwidth / 2) * np.sin(t2) - (self.fngrwdth + self.sqrwidth / 2) * np.cos(t2)
-
-        # Calculate theta2, d2
-        d2v = np.array([d2 * np.cos(t2), d2 * np.sin(t2)])
-        self.sqrwidthv = np.array([self.sqrwidth * np.sin(t2), -self.sqrwidth * np.cos(t2)])
-        self.palmwdthv = np.array([self.palmwdth, 0])
-        f1v = np.array([self.fngrwdth * np.sin(t2), -self.fngrwdth * np.cos(t2)])
-        av = d2v + f1v + self.sqrwidthv - self.palmwdthv
-
-        d1 = np.sqrt((av * av).sum() - self.fngrwdth * self.fngrwdth)
-        t1 = np.arctan2(av[1], av[0]) - np.arctan2(self.fngrwdth, d1)
-        return t1, d1
-
-
-    def translate_2(self, action):
-        d1 = self.state(1)
-        t1 = self.theta1_solution 
-        # Center Coordinates of square
-        x_square = self.palmwdth + (d1 - self.sqrwidth / 2) * np.cos(t1) - (self.sqrwidth / 2 + self.fngrwdth) * np.sin(t1)
-        y_square = (d1 - self.sqrwidth / 2) * np.sin(t1) + (self.sqrwidth / 2 + self.fngrwdth) * np.cos(t1)
-        # Calculate theta1, d1
-        d1v = np.array([d1 * np.cos(t1), d1 * np.sin(t1)])
-        self.sqrwidthv = np.array([self.sqrwidth * np.sin(t1), self.sqrwidth * np.cos(t1)])
-        self.palmwdthv = np.array([self.palmwdth, 0])
-        f2v = np.array([self.fngrwdth * np.sin(t1), self.fngrwdth * np.cos(t1)])
-        av = d1v - self.sqrwidthv - f2v + self.palmwdthv
-        d2 = np.sqrt((av * av).sum() - self.fngrwdth * self.fngrwdth)
-        t2 = np.arctan2(av[1], av[0]) + np.arctan2(self.fngrwdth, d2)
-        return t2,d2
-"""
 
     def reset(self):
-        self.state = [10.0, 10.0, 1.0]
+        self.state = [1, 1, 1]
         return self.state
 
     def step(self, action):
         prev_state= copy.copy(self.state)
-        rew= lambda st: 10 if st[0]==self.d1_d and st[1]==self.d2_d and st[2]==self.fs_d else 0
+        rew= lambda st: 100 if st[0]==self.d1_d and st[1]==self.d2_d and st[2]==self.fs_d else 0
         #rew=lambda st: -np.linalg.norm([st[0]-self.d1_d,st[1]-self.d2_d])   /10
         #rew = lambda st: 10*np.exp((abs(st[0] - self.d1_d) + abs(st[1] - self.d2_d)))
 
@@ -161,9 +125,7 @@ class FrictionFinger :
                 else :
                     self.state=[ self.state[0], self.state[1]-1 , self.state[2]]
                     self.reward =rew(self.state)
-                """ self.t1,self.t2=self.calc_th1andth2left(self,action)
-                self.t1,d1= self.translate_1(self, action)
-                self.state=[d1,self.state[1],0,self.state[2]]"""
+
             elif action == 1:
                 if self.state[1] == 12:
                     self. reward = rew(self.state)
@@ -171,16 +133,11 @@ class FrictionFinger :
                 else:
                     self.state = [self.state[0] , self.state[1]+1, self.state[2]]
                     self.reward=rew(self.state)
-                """self.t1, self.t2=self.calc_th1andth2right(self,action)
-                t2,d2 =self.translate_2(self,action)
-                self.state = [d2, self.state[1], 0, self.state[2]]
-                self.reward = exp(-2.5 * (abs(self.d1 - self.d1_d) + abs(self.d2 - self.d2_d)))"""
+
             elif action == 2:
-                self.state = self.state
-                self.reward= rew(self.state)
-            elif action == 3:
                 self.state[2] = 1
-                self.reward=rew(self.state)
+                self.reward= rew(self.state)
+
 
         elif self.state[2] == 1:
             if action == 0:
@@ -200,53 +157,14 @@ class FrictionFinger :
             elif action == 2:
                 self.state[2] = 0
                 self.reward= rew(self.state)
-            elif action == 3:
-                self.state = self.state
-                self.reward= rew(self.state)
 
         if self.state[0:3] == [self.d1_d, self.d2_d,self.fs_d] :
             self.done =True
         else:
             self.done= False
-        self.state=[max(min(self.state[0],12),0),max(min(self.state[1],12),0),max(min(self.state[2],1),0)]
-        #print((prev_state, self.state ,self.reward, self.done),)
+        self.state=[max(min(self.state[0],2),0),max(min(self.state[1],2),0),max(min(self.state[2],1),0)]
+        print((prev_state,action, self.state ,self.reward, self.done),)
         return (prev_state,action, self.state ,self.reward, self.done)
-"""
-    def cacl_th1andth2left(self):
-
-        self.t1, self.t2 = opt.fsolve(f_left, (0.1, 1))
-        print(self.t1, self.t2)
-        return self.t1, self.t2
-
-    def f_left(self,variables):
-        (self.t1, self.t2) = variables
-        eqn3 = self.fngrwdth * sin(self.t1) + self.fngrwdth * sin(self.t2) + (self.d1 ) * cos(
-            self.t1) + self.sqrwidth * sin(
-            self.t2) - self.palmwdth - self.d2 * cos(self.t2)
-        eqn4 = -self.fngrwdth * cos(self.t1) - self.fngrwdth * cos(self.t2) + (self.d1 ) * sin(
-            self.t1) - self.sqrwidth * cos(
-            self.t2) - self.d2 * sin(self.t2)
-        return [eqn3 eqn4]
-
-    def f_right(self, variables):
-        (self.t1, self.t2) = variables
-
-        eqn1 = self.fngrwdth * sin(self.t1) + self.fngrwdth * sin(self.t2) + self.d1 * cos(self.t1) + self.sqrwidth * sin(
-        self.t1) - self.palmwdth - (self.d2 + x) * cos(self.t2)
-        eqn2 = -self.fngrwdth * cos(self.t1) - self.fngrwdth * cos(self.t2) + self.d1 * sin(self.t1) - self.sqrwidth * cos(
-        self.t1) - (self.d2 + x) * sin(self.t2)
-        return eqn 1
-        print(self.t1, self.t2)
-        return self.t1, self.t2
-
-    def cacl_th1andth2right(self):
-        self.t1, self.t2 = opt.fsolve(f_right, (0.1, 1))
-        print(self.t1, self.t2)
-        return self.t1, self.t2
-"""
-
-
-
 
 
 import pdb
@@ -304,6 +222,7 @@ if __name__ == '__main__':
 
        # The final action-value function.
        # A nested dictionary that maps state -> (action -> action-value).
+       step_number=20
        Q = defaultdict(lambda: np.ones(env.action_space.n))
        exprep=ReplayMemory(2048)
 
@@ -316,10 +235,8 @@ if __name__ == '__main__':
        policy = make_epsilon_greedy_policy(Q, epsilon, env.action_space.n)
 
        for i_episode in range(num_episodes):
-           # Print out which episode we're on, useful for debugging.
-           # if (i_episode + 1) % 100 == 0:
-           #     print("\rEpisode {}/{}.".format(i_episode + 1, num_episodes), end="")
-           #     sys.stdout.flush()
+
+           print ('episode no.',i_episode)
 
            # Reset the environment and pick the first action
            state = env.reset()
@@ -332,27 +249,20 @@ if __name__ == '__main__':
                # Take a step
                action_probs = policy(state)
                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
-               # print("state_before", env.state)
-               # print("action",action)
                tup = env.step(action)
-               exprep.push(tup)
-               #prev_state, next_state, reward, done
-               # print("state_after", env.state)
-               # if done: #or t==1000:
-               #
-               #     print('found the solution',state)
-               #     #print (Q)
-               #     break
+               # exprep.push(tup)
 
                
                # Update statistics
                stats.episode_rewards[i_episode] += tup[3]
                stats.episode_lengths[i_episode] = t
-               if exprep.isReady():
-                   B=exprep.sampleBatch(32)
-                   for i in B:
+               # if exprep.isReady():
+               #     B=exprep.sampleBatch(32)
+               # for j in B:
                    # TD Update
-                       prev_state,action, next_state, reward, done= i[0],i[1],i[2],i[3],i[4]
+
+                       print('Q for ',j[0],'before update',Q[tuple(j[0])])
+                       prev_state,action, next_state, reward, done= j[0],j[1],j[2],j[3],j[4]
                        best_next_action = np.argmax(Q[tuple(next_state)])
 
 
@@ -364,13 +274,15 @@ if __name__ == '__main__':
 
                        Q[tuple(prev_state)][action] += alpha * td_delta
 
+                       print('Q for ', j[0],'after update',Q[tuple(j[0])])
+
 
                    #print('Q',Q[(1,10,1)])
                    #alpha= alpha**t
 
-               if tup[-1]: #or t==1000:
-                   #if done:
-                   print('found the solution',tup[2],'prev',tup[0])
+               if tup[-1]  :#or t==step_number:
+                   if tup[-1]:
+                       print('found the solution',tup[2],'prev',tup[0])
                    # z=input()
                        #print (Q)
                    break
@@ -379,7 +291,7 @@ if __name__ == '__main__':
 
 
        return Q, stats
-   Q, stats = q_learning(env, 500)
+   Q, stats = q_learning(env, 100)
 
    env.reset()
    def follow_greedy_policy(Q,start_state):
