@@ -26,19 +26,19 @@ class ReplayMemory:
     # Circular memory
     def push(self,exp):
         if len(self.expBuffer)<self.size:
-            self.expBuffer=[exp]+self.expBuffer
+            self.expBuffer=self.expBuffer+[exp]
         else:
             self.expBuffer.pop(0)
-            self.expBuffer=[exp]+self.expBuffer
-
+            self.expBuffer=self.expBuffer+[exp]
+        print(exp)
     # Check if buffer has sufficient experience
     def isReady(self):
-        return len(self.expBuffer)>=32
+        return len(self.expBuffer)>=1
 
     def sampleBatch(self,sz=None):
         if sz==None:
-            sz=32
-        idxs=[np.random.randint(0,len(self.expBuffer)) for _ in range(len(self.expBuffer))]
+            sz=1
+        idxs=[np.random.randint(0,len(self.expBuffer)) for _ in range(sz)]
         return [self.expBuffer[idx] for idx in idxs]
 
 
@@ -86,7 +86,7 @@ class FrictionFinger :
 
 
         self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Tuple((spaces.Box(low=np.array([0, 0]), high=np.array([2, 2]), dtype=np.int), spaces.Discrete(2)))
+        self.observation_space = spaces.Tuple((spaces.Box(low=np.array([0, 0]), high=np.array([3, 3]), dtype=np.int), spaces.Discrete(2)))
         self.state = None
 #       self.t1 = 40 * np.pi / 180 #       self.fngrwdth = 1.5
 #       self.palmwdth = 6.0
@@ -95,7 +95,7 @@ class FrictionFinger :
         #self.theta1_solution=None
 #       self.theta2_solution=None
         self.reward= None
-        self.d1_d=2
+        self.d1_d=3
         self.d2_d=2
         self.fs_d= 1
 #       self.t1_max=140
@@ -162,7 +162,7 @@ class FrictionFinger :
             self.done =True
         else:
             self.done= False
-        self.state=[max(min(self.state[0],2),0),max(min(self.state[1],2),0),max(min(self.state[2],1),0)]
+        self.state=[max(min(self.state[0],3),0),max(min(self.state[1],3),0),max(min(self.state[2],1),0)]
         print((prev_state,action, self.state ,self.reward, self.done),)
         return (prev_state,action, self.state ,self.reward, self.done)
 
@@ -224,7 +224,7 @@ if __name__ == '__main__':
        # A nested dictionary that maps state -> (action -> action-value).
        step_number=20
        Q = defaultdict(lambda: np.ones(env.action_space.n))
-       exprep=ReplayMemory(2048)
+       exprep=ReplayMemory(1)
 
        # Keeps track of useful statistics
        stats = plotting.EpisodeStats(
@@ -250,44 +250,44 @@ if __name__ == '__main__':
                action_probs = policy(state)
                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
                tup = env.step(action)
-               # exprep.push(tup)
+               exprep.push(tup)
 
                
                # Update statistics
                stats.episode_rewards[i_episode] += tup[3]
                stats.episode_lengths[i_episode] = t
-               # if exprep.isReady():
-               #     B=exprep.sampleBatch(32)
-               # for j in B:
-                   # TD Update
+               if exprep.isReady():
+                   B=exprep.sampleBatch(1)
+                   for j in B:
+                       # TD Update
 
-                       print('Q for ',j[0],'before update',Q[tuple(j[0])])
-                       prev_state,action, next_state, reward, done= j[0],j[1],j[2],j[3],j[4]
-                       best_next_action = np.argmax(Q[tuple(next_state)])
-
-
-                       td_target = reward + discount_factor * Q[tuple(next_state)][best_next_action] if not done else reward
+                           print('Q for ',j[0],'before update',Q[tuple(j[0])])
+                           prev_state,action, next_state, reward, done= j[0],j[1],j[2],j[3],j[4]
+                           best_next_action = np.argmax(Q[tuple(next_state)])
 
 
-                       td_delta = td_target - Q[tuple(prev_state)][action]
+                           td_target = reward + discount_factor * Q[tuple(next_state)][best_next_action] if not done else reward
 
 
-                       Q[tuple(prev_state)][action] += alpha * td_delta
-
-                       print('Q for ', j[0],'after update',Q[tuple(j[0])])
+                           td_delta = td_target - Q[tuple(prev_state)][action]
 
 
-                   #print('Q',Q[(1,10,1)])
-                   #alpha= alpha**t
+                           Q[tuple(prev_state)][action] += alpha * td_delta
 
-               if tup[-1]  :#or t==step_number:
-                   if tup[-1]:
-                       print('found the solution',tup[2],'prev',tup[0])
-                   # z=input()
-                       #print (Q)
-                   break
+                           print('Q for ', j[0],'after update',Q[tuple(j[0])])
 
-               state = tup[2]
+
+                       #print('Q',Q[(1,10,1)])
+                       #alpha= alpha**t
+
+                   if tup[-1]  :#or t==step_number:
+                       if tup[-1]:
+                           print('found the solution',tup[2],'prev',tup[0])
+                       # z=input()
+                           #print (Q)
+                       break
+
+                   state = tup[2]
 
 
        return Q, stats
@@ -300,8 +300,7 @@ if __name__ == '__main__':
        #print('start state1',start_state)
        step=0
        while ( not done and step<=10):
-           print('start state2',start_state)
-
+           print('start state',start_state)
            best_action1 = np.argmax(Q[tuple(start_state)])
            # print('start state3', start_state)
            print('best action', best_action1)
@@ -310,7 +309,7 @@ if __name__ == '__main__':
            print('Q',Q[tuple(prev_state)])
            print ('nextstate',next_state)
            start_state=next_state
-           print('state:',start_state)
+           #print('state:',start_state)
            step+=1
    plotting.plot_episode_stats(stats)
 
